@@ -5,5 +5,8 @@
   "scripts": {
     "scrape:hijri": "node scripts/scrape-hijri-widget.mjs"
   },
-  "dependencies": {}
+  "devDependencies": {
+    "playwright": "^1.48.0",
+    "@playwright/test": "^1.48.0"
+  }
 }
