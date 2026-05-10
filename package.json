@@ -1,0 +1,9 @@
+{
+  "name": "icoukcalendar",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scrape:hijri": "node scripts/scrape-hijri-widget.mjs"
+  },
+  "dependencies": {
+    "
