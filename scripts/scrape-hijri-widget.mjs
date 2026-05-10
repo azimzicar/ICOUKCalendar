@@ -1,58 +1,50 @@
-import { chromium } from "playwright";
-import fs from "node:fs/promises";
-import path from "node:path";
+name: Update Hijri Calendar Widget (UK)
 
-const TARGET_URL = "https://www.moonsighting.org.uk/";
-const OUTPUT_PATH = path.join(process.cwd(), "public", "widgets", "hijri-calendar-uk.html");
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch: {}
 
-// Stable: find the card that has the header text
-const CARD_LOCATOR = 'div.card:has(h3:has-text("Hijri Calendar (UK)"))';
+permissions:
+  contents: write
 
-function wrapAsStandaloneHtml(widgetOuterHtml) {
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hijri Calendar (UK)</title>
-  <style>
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    .card { border: 1px solid #e6e6e6; border-radius: 12px; overflow: hidden; background: #fff; }
-    .card-header { margin: 0; padding: 10px 12px; font-size: 14px; background: #f6f7fb; border-bottom: 1px solid #e6e6e6; }
-    .card-body { padding: 10px; }
-  </style>
-</head>
-<body>
-  ${widgetOuterHtml}
-</body>
-</html>`;
-}
+jobs:
+  scrape-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
 
-async function main() {
-  await fs.mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
-  const browser = await chromium.launch();
-  const page = await browser.newPage({
-    viewport: { width: 450, height: 900 },
-    deviceScaleFactor: 2
-  });
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
 
-  await page.goto(TARGET_URL, { waitUntil: "networkidle", timeout: 60000 });
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
 
-  const card = page.locator(CARD_LOCATOR).first();
-  await card.waitFor({ state: "visible", timeout: 30000 });
+      - name: Install dependencies
+        run: npm ci
 
-  const widgetOuterHtml = await card.evaluate(el => el.outerHTML);
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
 
-  await browser.close();
+      - name: Run scraper
+        run: npm run scrape:hijri
 
-  const finalHtml = wrapAsStandaloneHtml(widgetOuterHtml);
-  await fs.writeFile(OUTPUT_PATH, finalHtml, "utf8");
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-  console.log("Saved:", OUTPUT_PATH);
-}
+          git add public/widgets/hijri-calendar-uk.html
 
-main().catch(err => {
-  console.error("Scrape failed:", err);
-  process.exit(1);
-});
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Update Hijri calendar widget (UK)"
+          git push
